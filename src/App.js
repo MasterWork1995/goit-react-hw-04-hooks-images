@@ -1,4 +1,4 @@
-import { Component } from "react";
+import React, { useState, useEffect } from "react";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import "react-loader-spinner/dist/loader/css/react-spinner-loader.css";
@@ -14,117 +14,110 @@ import Request from "./Components/Request";
 import Button from "./Components/Button";
 import Modal from "./Components/Modal";
 
-class App extends Component {
-  state = {
-    query: "",
-    images: null,
-    page: 1,
-    error: null,
-    total: null,
-    status: "idle",
-    showModal: false,
-    largeURL: "",
-  };
+const Status = {
+  IDLE: "idle",
+  PENDING: "pending",
+  RESOLVED: "resolved",
+  REJECTED: "rejected",
+};
 
-  componentDidUpdate(prevProps, prevState) {
-    const { query, page, showModal } = this.state;
+const App = () => {
+  const [query, setQuery] = useState("");
+  const [images, setImages] = useState(null);
+  const [page, setPage] = useState(1);
+  const [error, setError] = useState(null);
+  const [total, setTotal] = useState(null);
+  const [status, setStatus] = useState(Status.IDLE);
+  const [showModal, setShowModal] = useState(false);
+  const [largeURL, setLargeURL] = useState("");
 
-    if (prevState.query !== query) {
-      this.setState({ status: "pending" });
+  useEffect(() => {
+    if (query === "") return;
 
-      this.firstFetchImages(query, page);
+    setStatus(Status.PENDING);
+    firstFetchImages(query, page);
+  }, [query]);
+
+  useEffect(() => {
+    if (page === 1) {
+      return;
     }
+    nextFetchImages(query, page);
+  }, [page]);
 
-    if (prevState.page !== page && page !== 1) {
-      this.nextFetchImages(query, page);
-    }
+  const firstFetchImages = (query, page) => {
+    pixabayAPI.fetchImage(query, page).then(({ hits, total }) => {
+      setImages(hits);
+      setTotal(total);
+      setStatus(Status.RESOLVED);
+      if (!total) {
+        setError("Something went wrong! Please, change your request!");
+        setStatus(Status.REJECTED);
+      } else {
+        setError(null);
+      }
 
-    if (!showModal && !prevState.showModal) {
       window.scrollTo({
         top: document.documentElement.scrollHeight,
         behavior: "smooth",
       });
-    }
-  }
-
-  firstFetchImages = (query, page) => {
-    pixabayAPI.fetchImage(query, page).then(({ hits, total }) => {
-      this.setState({ images: hits, total, status: "resolved" });
-      if (!total) {
-        this.setState({
-          error: "Something went wrong! Please, change your request!",
-          status: "rejected",
-        });
-      } else {
-        this.setState({ error: null });
-      }
     });
   };
 
-  nextFetchImages = (query, page) => {
+  const nextFetchImages = (query, page) => {
     pixabayAPI.fetchImage(query, page).then(({ hits }) => {
-      this.setState((prevState) => ({
-        images: [...prevState.images, ...hits],
-      }));
+      setImages((prevImg) => [...prevImg, ...hits]);
+
+      window.scrollTo({
+        top: document.documentElement.scrollHeight,
+        behavior: "smooth",
+      });
     });
   };
 
-  handleFormSubmit = (query) => {
-    this.setState({
-      query,
-      page: 1,
-    });
+  const handleFormSubmit = (query) => {
+    setQuery(query);
+    setPage(1);
   };
 
-  handleIncrement = () => {
-    this.setState({ page: this.state.page + 1 });
+  const handleIncrement = () => {
+    setPage((prevPage) => prevPage + 1);
   };
 
-  openModal = (url) => {
-    this.setState(({ showModal }) => ({
-      showModal: !showModal,
-      largeURL: url,
-    }));
+  const openModal = (url) => {
+    setShowModal(!showModal);
+    setLargeURL(url);
   };
 
-  closeModal = () => {
-    this.setState(({ showModal }) => ({
-      showModal: !showModal,
-      largeURL: "",
-    }));
+  const closeModal = () => {
+    setShowModal(!showModal);
+    setLargeURL("");
   };
 
-  render() {
-    const { error, status, total, page, showModal, largeURL } = this.state;
-
-    return (
-      <>
-        <SearchBar onSubmit={this.handleFormSubmit} />;
-        <Section>
-          <Container>
-            {status === "idle" && <Request />}
-            {status === "rejected" && <ErrorMessage message={error} />}
-            {status === "resolved" && (
-              <ImageGallery
-                images={this.state.images}
-                openModal={this.openModal}
-              />
-            )}
-            {status === "pending" && (
-              <Loader type="Watch" color="#00BFFF" height={80} width={80} />
-            )}
-            {total - page * 12 > 0 && <Button onClick={this.handleIncrement} />}
-          </Container>
-        </Section>
-        {showModal && (
-          <Modal onClose={this.closeModal}>
-            <img src={largeURL} alt="" />
-          </Modal>
-        )}
-        <ToastContainer autoClose={3000} />
-      </>
-    );
-  }
-}
+  return (
+    <>
+      <SearchBar onSubmit={handleFormSubmit} />;
+      <Section>
+        <Container>
+          {status === "idle" && <Request />}
+          {status === "rejected" && <ErrorMessage message={error} />}
+          {status === "resolved" && (
+            <ImageGallery images={images} openModal={openModal} />
+          )}
+          {status === "pending" && (
+            <Loader type="Watch" color="#00BFFF" height={80} width={80} />
+          )}
+          {total - page * 12 > 0 && <Button onClick={handleIncrement} />}
+        </Container>
+      </Section>
+      {showModal && (
+        <Modal onClose={closeModal}>
+          <img src={largeURL} alt="" />
+        </Modal>
+      )}
+      <ToastContainer autoClose={3000} />
+    </>
+  );
+};
 
 export default App;
