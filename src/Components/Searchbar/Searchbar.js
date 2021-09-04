@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import s from "./Searchbar.module.css";
+import PropTypes from "prop-types";
 import { toast } from "react-toastify";
 import Container from "../Container";
 
@@ -43,6 +44,10 @@ const SearchBar = ({ onSubmit }) => {
       </Container>
     </header>
   );
+};
+
+SearchBar.propTypes = {
+  onSubmit: PropTypes.func.isRequired,
 };
 
 export default SearchBar;
